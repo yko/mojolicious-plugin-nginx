@@ -8,24 +8,24 @@ require Mojo::URL;
 
 use base 'Mojolicious::Plugin';
 
-our $VERSION = '0.01_0';
+our $VERSION = '0.02_0';
 
 sub register {
     my ($self, $app, $params) = @_;
     $app->hook(
         before_dispatch => sub {
-            my $c    = shift;
-            my $base = $c->req->headers->header('X-Proxy-Path');
+            my $c = shift;
 
-            unless ($base) {
-                $app->log->debug(
-                    "No 'X-Proxy-Path' header in request. Did you forget to set it into ngix.conf?"
-                );
-                return;
+            if ( my $host = $c->req->headers->header('X-Forwarded-Host') || $c->req->headers->header('X-Forwarded-Server') ) {
+                # Set host to X-Forwarded-Host
+                 $c->req->url->base->host($host);
+                 $c->req->url->base->port(undef) if $c->req->url->base->scheme =~ 'https?';
             }
-
-            # Set base url to X-Proxy-Path
-            $c->req->url->base->path->parse($base);
+            if ( my $base = $c->req->headers->header('X-Proxy-Path') ) {
+                # Set base url to X-Proxy-Path
+                $c->req->url->base->path->parse($base);
+            }
+            return;
         }
     );
 }
